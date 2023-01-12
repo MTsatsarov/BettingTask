@@ -31,7 +31,8 @@ namespace Betting.Web.Controllers
 		//[Authorize]
 		public async Task<IActionResult> GetMatchById(Guid matchId)
 		{
-			return this.Ok();
+			var response = await this.matchService.GetMatchById(matchId);
+			return this.Ok(response);
 		}
 
 	}

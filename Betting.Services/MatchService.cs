@@ -3,18 +3,16 @@ using Betting.Data.Entities;
 using Betting.Services.Interfaces;
 using Betting.Services.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using System.Text;
-using System.Text.Json.Serialization;
-using System.Xml;
 using System.Xml.Linq;
 
 namespace Betting.Services
 {
+	
 	public class MatchService : IMatchService
 	{
 		private BettingContext db;
+		private readonly string[] previewMarkets =
+		new string[] { "Match Winner", "Map Advantage", "Total Maps Played" };
 
 		public MatchService(BettingContext db)
 		{
@@ -47,13 +45,13 @@ namespace Betting.Services
 				dbSport = new Sport();
 				dbSport.GivenId = sportGivenId;
 				dbSport.Name = sportName;
-				dbSport.Events = this.GetEvents(sport);
+				dbSport.Events = this.GetXmlEvents(sport);
 
 				await this.db.Sports.AddAsync(dbSport);
 			}
 			else
 			{
-				var events = this.GetEvents(sport);
+				var events = this.GetXmlEvents(sport);
 				this.UpdateSport(dbSport, events);
 
 				this.db.Sports.Update(dbSport);
@@ -71,65 +69,84 @@ namespace Betting.Services
 
 			foreach (var match in matches)
 			{
-				var currMatchModel = new MatchResponseModel()
-				{
-					Name = match.Name,
-					StartDate = match.StartDate.Value,
-				};
+				var currMatch = new MatchResponseModel();
+				currMatch.Name = match.Name;
+				currMatch.StartDate = match.StartDate.Value;
+				currMatch.MatchId = match.Id;
 
-				if (!match.Bets.Any(x => x.Odds.Any(x => x.SpecialBetValue != null)))
+				var matchMarkets = match.Bets.Where(b => this.previewMarkets.Contains(b.Name)).ToList();
+
+				if (!matchMarkets.Any())
 				{
-					var currMatchBets = match.Bets.Select(x => new BetResponseModel()
-					{
-						Name = x.Name,
-						IsLive = x.IsLive,
-						Odds = x.Odds.Select(x => new OddResponseModel()
-						{
-							Name = x.Name,
-							SpecialBetValue = null,
-							Value = x.Value,
-						}),
-					});
-					currMatchModel.Markets = currMatchBets.ToList();
+					matchesModel.Matches.Add(currMatch);
+					continue;
 				}
 				else
 				{
-					var currMatchBets = match.Bets.Where(x=>x.Odds.Any(x=>x.SpecialBetValue!=null)).ToList();
-
-					foreach (var bet in currMatchBets)
+					foreach (var market in matchMarkets)
 					{
-						var a = bet.Odds.GroupBy(x => x.SpecialBetValue);
-						;
-						//var odds = .Select((x, y) => new OddResponseModel()
-						//{
-						//	Name = x.FirstOrDefault().Name,
-						//	SpecialBetValue = x.FirstOrDefault().SpecialBetValue
-						//}).ToList();
+						var currMarket = new BetResponseModel();
+						currMarket.Name = market.Name;
+						currMarket.IsLive = market.IsLive;
 
+						if(!market.Odds.Any(x=>x.SpecialBetValue != null))
+						{
+							var oddresponseList = market.Odds.Select(o => new OddResponseModel()
+							{
+								Name = o.Name,
+								Value = o.Value,
+							});
+							currMarket.Odds = oddresponseList.ToList();
+						}
+						else
+						{
+							var odds = market.Odds.GroupBy(o => o.SpecialBetValue).Select(x => new OddResponseModel()
+							{
+								Name = x.FirstOrDefault().Name,
+								SpecialBetValue = x.FirstOrDefault().SpecialBetValue,
+								Value = x.FirstOrDefault().Value
+							}).Take(1).ToList();
+
+							currMarket.Odds = odds.ToList();
+						}
+						currMatch.Markets.Add(currMarket);
 					}
-					/*x => new BetResponseModel()*/
-					//{
-					//	Name = x.Name,
-					//	IsLive = x.IsLive,
-					//	Odds = x.Odds.GroupBy(x => x.SpecialBetValue).Select(x => new OddResponseModel()
-					//	{
-					//		SpecialBetValue = x.FirstOrDefault(x => x.SpecialBetValue != null).SpecialBetValue,
-					//		Name = x.FirstOrDefault(x => x.SpecialBetValue != null).Name,
-					//		Value = x.FirstOrDefault(x => x.SpecialBetValue != null).Value,
-
-					//	}).Take(1).ToList()
-					//}).FirstOrDefault();
-
-					//currMatchModel.Markets = new List<BetResponseModel>() {
-					//	currMatchBets,
-					//};
-					continue;
 				}
-				matchesModel.Matches.Add(currMatchModel);
+				matchesModel.Matches.Add(currMatch);
+				
+			}
+			return matchesModel;
+		}
 
+		public async Task<MatchResponseModel> GetMatchById(Guid matchId)
+		{
+			var dbMatch = await this.db.Matches.FirstOrDefaultAsync(m => m.Id == matchId);
+
+			if (dbMatch is null)
+			{
+				throw new InvalidOperationException("Invalid match id.");
 			}
 
-			return matchesModel;
+			var matchModel = new MatchResponseModel();
+			matchModel.Name = dbMatch.Name;
+			matchModel.StartDate = dbMatch.StartDate.Value;
+			matchModel.MatchId = dbMatch.Id;
+
+			var markets = dbMatch.Bets.Select(b => new BetResponseModel()
+			{
+				IsLive = b.IsLive,
+				Name = b.Name,
+				Odds = b.Odds.Select(o => new OddResponseModel()
+				{
+					Name = o.Name,
+					SpecialBetValue = o.SpecialBetValue,
+					Value = o.Value
+				}).ToList()
+			}).ToList();
+
+			matchModel.Markets = markets.ToList();
+
+			return matchModel;
 		}
 
 		private void UpdateSport(Sport dbSport, List<Event> events)
@@ -141,7 +158,8 @@ namespace Betting.Services
 					dbSport.Events.Add(currEvent);
 					continue;
 				}
-				var dbEvent = dbSport.Events.FirstOrDefault();
+				var dbEvent = dbSport.Events.FirstOrDefault(e=>e.GivenId == currEvent.GivenId);
+
 				foreach (var currMatch in currEvent.Matches)
 				{
 					var dbMatch = dbEvent.Matches.FirstOrDefault(x => x.GivenId == currMatch.GivenId);
@@ -192,7 +210,7 @@ namespace Betting.Services
 			}
 		}
 
-		private List<Odd> GetOdds(XElement bet)
+		private List<Odd> GetXmlOdds(XElement bet)
 		{
 			var odds = bet.Descendants("Odd").ToList();
 			var oddList = new List<Odd>();
@@ -214,7 +232,7 @@ namespace Betting.Services
 			return oddList;
 		}
 
-		private List<Bet> GetBets(XElement match)
+		private List<Bet> GetXmlMarkets(XElement match)
 		{
 			var bets = match.Descendants("Bet").ToList();
 			var betList = new List<Bet>();
@@ -227,7 +245,7 @@ namespace Betting.Services
 
 				var newBet = new Bet(betName, betId, betIsLive);
 
-				newBet.Odds = this.GetOdds(bet);
+				newBet.Odds = this.GetXmlOdds(bet);
 
 
 				betList.Add(newBet);
@@ -236,7 +254,7 @@ namespace Betting.Services
 			return betList;
 		}
 
-		private List<Match> GetMatches(XElement currEvent)
+		private List<Match> GetXmlMatches(XElement currEvent)
 		{
 			var matches = currEvent.Descendants("Match").ToList();
 			var matchList = new List<Match>();
@@ -250,14 +268,14 @@ namespace Betting.Services
 				var currMatch = new Match(matchName, matchId, startDate, matchType);
 
 
-				currMatch.Bets = this.GetBets(match);
+				currMatch.Bets = this.GetXmlMarkets(match);
 
 				matchList.Add(currMatch);
 			}
 			return matchList;
 		}
 
-		private List<Event> GetEvents(XElement sport)
+		private List<Event> GetXmlEvents(XElement sport)
 		{
 			var events = sport.Descendants("Event").ToList();
 			var eventList = new List<Event>();
@@ -269,13 +287,11 @@ namespace Betting.Services
 				var categoryId = currEvent.Attributes().FirstOrDefault(x => x.Name == "CategoryID").Value;
 
 				var newEvent = new Event(eventGivenId, eventName, eventIsLive, categoryId);
-				newEvent.Matches = this.GetMatches(currEvent);
+				newEvent.Matches = this.GetXmlMatches(currEvent);
 				eventList.Add(newEvent);
 			}
 
 			return eventList;
 		}
-
-
 	}
 }

@@ -9,6 +9,7 @@ using Hangfire;
 using Hangfire.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Betting.Services.BackgroundJobs;
+using Microsoft.AspNetCore.Diagnostics;
 
 namespace Betting
 {
@@ -40,6 +41,9 @@ namespace Betting
 
 			//Register services
 			builder.Services.AddTransient<IMatchService, MatchService>();
+
+			builder.Services.AddTransient<Betting.Services.Utils.MIddlewares.ExceptionHandlerMiddleware, 
+				Betting.Services.Utils.MIddlewares.ExceptionHandlerMiddleware>();
 
 			builder.Services.AddControllers();
 			// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -95,6 +99,7 @@ namespace Betting
 			app.UseAuthentication();
 			app.UseAuthorization();
 
+			app.UseMiddleware<Betting.Services.Utils.MIddlewares.ExceptionHandlerMiddleware>();
 
 			app.MapControllers();
 

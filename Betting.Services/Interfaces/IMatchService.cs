@@ -7,5 +7,7 @@ namespace Betting.Services.Interfaces
 		Task GetBettingInfo();
 
 		Task<MatchesResponseModel> GetMatchesForTimePeriod(int hours);
+
+		Task<MatchResponseModel> GetMatchById(Guid matchId);
 	}
 }
