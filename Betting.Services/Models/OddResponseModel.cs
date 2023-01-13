@@ -12,6 +12,7 @@ namespace Betting.Services.Models
 
 		public string SpecialBetValue { get; set; }
 
+		public string GivenId { get; set; }
 		public string Name { get; set; }
 	}
 }

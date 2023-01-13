@@ -3,6 +3,7 @@ using Betting.Data.Entities;
 using Betting.Services.Interfaces;
 using Betting.Services.Models;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel;
 using System.Xml.Linq;
 
 namespace Betting.Services
@@ -95,6 +96,7 @@ namespace Betting.Services
 							{
 								Name = o.Name,
 								Value = o.Value,
+								GivenId = o.GivenId,
 							});
 							currMarket.Odds = oddresponseList.ToList();
 						}
@@ -104,7 +106,8 @@ namespace Betting.Services
 							{
 								Name = x.FirstOrDefault().Name,
 								SpecialBetValue = x.FirstOrDefault().SpecialBetValue,
-								Value = x.FirstOrDefault().Value
+								Value = x.FirstOrDefault().Value,
+								GivenId	= x.FirstOrDefault().GivenId
 							}).Take(1).ToList();
 
 							currMarket.Odds = odds.ToList();
@@ -149,8 +152,9 @@ namespace Betting.Services
 			return matchModel;
 		}
 
-		private void UpdateSport(Sport dbSport, List<Event> events)
+		private MatchesUpdateNotifier UpdateSport(Sport dbSport, List<Event> events)
 		{
+			var matchesResponseModel =new MatchesUpdateNotifier();
 			foreach (var currEvent in events)
 			{
 				if (!dbSport.Events.Any(x => x.GivenId == currEvent.GivenId))
@@ -158,52 +162,95 @@ namespace Betting.Services
 					dbSport.Events.Add(currEvent);
 					continue;
 				}
-				var dbEvent = dbSport.Events.FirstOrDefault(e=>e.GivenId == currEvent.GivenId);
 
-				foreach (var currMatch in currEvent.Matches)
+				var dbEvent = dbSport.Events.FirstOrDefault(e => e.GivenId == currEvent.GivenId);
+
+				this.UpdateMatches(matchesResponseModel, currEvent, dbEvent);
+			}
+			return matchesResponseModel;
+		}
+
+		private  void UpdateMatches(MatchesUpdateNotifier matchesResponseModel, Event currEvent, Event dbEvent)
+		{
+			foreach (var currMatch in currEvent.Matches)
+			{
+				var matchResponse = new MatchResponseModel();
+				bool isUpdated = false;
+				var dbMatch = dbEvent.Matches.FirstOrDefault(x => x.GivenId == currMatch.GivenId);
+				if (dbMatch == null)
 				{
-					var dbMatch = dbEvent.Matches.FirstOrDefault(x => x.GivenId == currMatch.GivenId);
-					if (dbMatch == null)
+					currEvent.Matches.Add(currMatch);
+					continue;
+				}
+
+				if (currMatch.StartDate != dbMatch.StartDate)
+				{
+					dbMatch.StartDate = currMatch.StartDate;
+					isUpdated = true;
+				}
+
+				if (currMatch.MatchType != dbMatch.MatchType)
+				{
+					dbMatch.MatchType = currMatch.MatchType;
+					isUpdated = true;
+				}
+
+				this.UpdateMarkets(currMatch, matchResponse, dbMatch);
+
+				if (isUpdated)
+				{
+					matchesResponseModel.Matches.Add(matchResponse);
+
+				}
+			}
+		}
+
+		private void UpdateMarkets(Match currMatch, MatchResponseModel matchResponse, Match dbMatch)
+		{
+			foreach (var bet in currMatch.Bets)
+			{
+				var currBet = dbMatch
+					.Bets
+					.Where(x => x.GivenId == bet.GivenId)
+					.FirstOrDefault();
+
+				var dbOddList = new List<Odd>();
+
+				if (currBet is not null && currBet.Odds.Any())
+				{
+					dbOddList = currBet.Odds.ToList();
+				}
+
+				foreach (var odd in bet.Odds)
+				{
+					if (dbOddList.Any(x => x.GivenId == odd.GivenId))
 					{
-						currEvent.Matches.Add(currMatch);
-						continue;
-					}
+						var dbOdd = dbOddList.FirstOrDefault(x => x.GivenId == odd.GivenId);
 
-					if (currMatch.StartDate != dbMatch.StartDate)
-					{
-						dbMatch.StartDate = currMatch.StartDate;
-					}
-
-					if (currMatch.MatchType != dbMatch.MatchType)
-					{
-						dbMatch.MatchType = currMatch.MatchType;
-					}
-
-					foreach (var bet in currMatch.Bets)
-					{
-						var currBet = dbMatch
-							.Bets
-							.Where(x => x.GivenId == bet.GivenId)
-							.FirstOrDefault();
-
-						var dbOddList = new List<Odd>();
-
-						if (currBet is not null && currBet.Odds.Any())
+						if (dbOdd.Value != odd.Value)
 						{
-							dbOddList = currBet.Odds.ToList();
-						}
+							dbOdd.Value = odd.Value;
 
-						foreach (var odd in bet.Odds)
-						{
-							if (dbOddList.Any(x => x.GivenId == odd.GivenId))
+							var betResponseModel = matchResponse.Markets.FirstOrDefault(x => x.GivenId == bet.GivenId);
+							if (betResponseModel == null)
 							{
-								var dbOdd = dbOddList.FirstOrDefault(x => x.GivenId == odd.GivenId);
-
-								if (dbOdd.Value != odd.Value)
+								betResponseModel = new BetResponseModel()
 								{
-									dbOdd.Value = odd.Value;
-								}
+									IsLive = bet.IsLive,
+									GivenId = bet.GivenId,
+									Name = bet.Name,
+
+								};
 							}
+							betResponseModel.Odds.Add(new OddResponseModel()
+							{
+								Value = odd.Value,
+								GivenId = odd.GivenId,
+								Name = odd.Name,
+								SpecialBetValue = odd.SpecialBetValue
+							});
+
+							matchResponse.Markets.Add(betResponseModel);
 						}
 					}
 				}

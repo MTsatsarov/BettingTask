@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Betting.Web", "Betting.Web.csproj", "{D8E6C712-EC56-4D47-9EF0-44C578546D97}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Betting.Web", "Betting.Web.csproj", "{D8E6C712-EC56-4D47-9EF0-44C578546D97}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Betting.Services", "..\Betting.Services\Betting.Services.csproj", "{E73753E5-3BC5-4243-87BC-DC21EB47AC55}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Betting.Services", "..\Betting.Services\Betting.Services.csproj", "{E73753E5-3BC5-4243-87BC-DC21EB47AC55}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Betting.Data", "..\Betting.Data\Betting.Data.csproj", "{3C41C688-5FAB-4287-A029-69C40780B15E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Betting.Data", "..\Betting.Data\Betting.Data.csproj", "{3C41C688-5FAB-4287-A029-69C40780B15E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Betting.Tests", "..\Betting.Tests\Betting.Tests.csproj", "{557190FD-7325-4459-939F-CD108B755BA8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Betting.Tests", "..\Betting.Tests\Betting.Tests.csproj", "{557190FD-7325-4459-939F-CD108B755BA8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

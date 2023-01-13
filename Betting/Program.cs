@@ -10,6 +10,7 @@ using Hangfire.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Betting.Services.BackgroundJobs;
 using Microsoft.AspNetCore.Diagnostics;
+using Betting.Web.Hubs;
 
 namespace Betting
 {
@@ -68,6 +69,8 @@ namespace Betting
 
 			builder.Services.AddHangfireServer();
 
+			builder.Services.AddSignalR();
+
 			var app = builder.Build();
 
 			app.UseHangfireDashboard("/hangfire", new DashboardOptions());
@@ -85,7 +88,6 @@ namespace Betting
 				var dbContext = serviceScope.ServiceProvider.GetRequiredService<BettingContext>();
 				dbContext.Database.Migrate();
 			}
-			
 
 			// Configure the HTTP request pipeline.
 			if (app.Environment.IsDevelopment())
