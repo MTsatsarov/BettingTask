@@ -20,16 +20,16 @@ namespace Betting.Services
 			this.db = db;
 		}
 
-		public async Task GetBettingInfo()
+		public async Task<MatchesResponseModel> GetBettingInfo()
 		{
 			var endpoint = "https://sports.ultraplay.net/sportsxml?clientKey=9C5E796D-4D54-42FD-A535-D7E77906541A&sportId=2357&days=7";
 			var client = new HttpClient();
 			var responseMessage = await client.GetAsync(endpoint);
-
+			var updatedMatches = new MatchesResponseModel();
 			if (!responseMessage.IsSuccessStatusCode)
 			{
 				//log error;
-				return;
+				throw new InvalidOperationException();
 			}
 
 			var xmlAsString = await responseMessage.Content.ReadAsStringAsync();
@@ -53,11 +53,14 @@ namespace Betting.Services
 			else
 			{
 				var events = this.GetXmlEvents(sport);
-				this.UpdateSport(dbSport, events);
+				updatedMatches = this.UpdateSport(dbSport, events);
 
 				this.db.Sports.Update(dbSport);
 			}
+
 			await this.db.SaveChangesAsync();
+			return updatedMatches;
+
 		}
 
 		public async Task<MatchesResponseModel> GetMatchesForTimePeriod(int hours)
@@ -152,9 +155,9 @@ namespace Betting.Services
 			return matchModel;
 		}
 
-		private MatchesUpdateNotifier UpdateSport(Sport dbSport, List<Event> events)
+		private MatchesResponseModel UpdateSport(Sport dbSport, List<Event> events)
 		{
-			var matchesResponseModel =new MatchesUpdateNotifier();
+			var matchesResponseModel =new MatchesResponseModel();
 			foreach (var currEvent in events)
 			{
 				if (!dbSport.Events.Any(x => x.GivenId == currEvent.GivenId))
@@ -170,7 +173,7 @@ namespace Betting.Services
 			return matchesResponseModel;
 		}
 
-		private  void UpdateMatches(MatchesUpdateNotifier matchesResponseModel, Event currEvent, Event dbEvent)
+		private  void UpdateMatches(MatchesResponseModel matchesResponseModel, Event currEvent, Event dbEvent)
 		{
 			foreach (var currMatch in currEvent.Matches)
 			{
@@ -179,7 +182,7 @@ namespace Betting.Services
 				var dbMatch = dbEvent.Matches.FirstOrDefault(x => x.GivenId == currMatch.GivenId);
 				if (dbMatch == null)
 				{
-					currEvent.Matches.Add(currMatch);
+					dbEvent.Matches.Add(currMatch);
 					continue;
 				}
 

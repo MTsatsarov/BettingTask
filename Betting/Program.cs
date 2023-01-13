@@ -8,9 +8,11 @@ using Hangfire.SqlServer;
 using Hangfire;
 using Hangfire.Common;
 using Microsoft.Extensions.DependencyInjection;
-using Betting.Services.BackgroundJobs;
 using Microsoft.AspNetCore.Diagnostics;
 using Betting.Web.Hubs;
+using Betting.Web.Background;
+using Microsoft.AspNetCore.SignalR;
+using Betting.Web.Hubs.Interfaces;
 
 namespace Betting
 {
@@ -80,7 +82,8 @@ namespace Betting
 			var everyMinuteCron = "* * * * *";
 			manager.AddOrUpdate("MinutelyJob",
 				Job.FromExpression(() => new MinutelyJobs(
-					new object() as IMatchService
+					new object() as IMatchService,
+					new object() as IHubContext<MatchHub,IMatchHub>
 				).StartJobs()), everyMinuteCron);
 
 			using (var serviceScope = app.Services.CreateScope())
@@ -104,7 +107,7 @@ namespace Betting
 			app.UseMiddleware<Betting.Services.Utils.MIddlewares.ExceptionHandlerMiddleware>();
 
 			app.MapControllers();
-
+			app.MapHub<MatchHub>("/hubs/match");
 			app.Run();
 		}
 	}

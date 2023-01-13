@@ -4,7 +4,7 @@ namespace Betting.Services.Interfaces
 {
 	public interface IMatchService
 	{
-		Task GetBettingInfo();
+		Task<MatchesResponseModel> GetBettingInfo();
 
 		Task<MatchesResponseModel> GetMatchesForTimePeriod(int hours);
 
